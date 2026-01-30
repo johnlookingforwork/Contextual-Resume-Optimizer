@@ -39,50 +39,54 @@ To validate the system's effectiveness, the project measures:
 
 While the practical application assists candidates in navigating modern recruitment pipelines, the underlying research goal is to investigate how Context-Aware Systems can more accurately represent human experience in a machine-readable format without losing nuance or introducing bias.
 
-## 🚀 Local Setup
-
-1. Clone the repo: `git clone https://github.com/johnlookingforwork/Contextual-Resume-Optimizer.git`
-2. Install dependencies: `pip install -r requirements.txt`
-3. Run the application: `streamlit run app.py`# 🚀 Getting Started
+# 🚀 Getting Started
 
 ### 1. Prerequisites
 
-Ensure you have Python 3.10+ installed on your system.
+Before you begin, ensure you have the following installed on your system:
 
-### 2. Install Ollama (Local LLM Server)
+- **Python 3.10+**
+- **Ollama:** Download and install from [ollama.com](https://ollama.com/download).
+- **Tesseract OCR:**
+    - **macOS:** `brew install tesseract`
+    - **Windows:** Follow the instructions on the [Tesseract Wiki](https://github.com/UB-Mannheim/tesseract/wiki).
+    - **Linux (Debian/Ubuntu):** `sudo apt update && sudo apt install tesseract-ocr`
 
-This project uses **Ollama** to handle local inference, ensuring your resume data never leaves your machine.
+### 2. Setup & Installation
 
-- **macOS/Windows:** Download the installer from [ollama.com](https://ollama.com/download).
-- **Linux:** Run the following command:
-  ```bash
-  curl -fsSL [https://ollama.com/install.sh](https://ollama.com/install.sh) | sh
-  ```
+Follow these steps to set up your project environment:
 
-### 3. Model Setup
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/Contextual-Resume-Optimizer.git
+    cd Contextual-Resume-Optimizer
+    ```
 
-Once Ollama is installed and running, pull the lightweight model used for this project:
+2.  **Create and activate a virtual environment:**
+    ```bash
+    # Create a virtual environment named 'venv'
+    python3 -m venv venv
 
+    # Activate the environment
+    source venv/bin/activate 
+    # On Windows, use: venv\Scripts\activate
+    ```
+
+3.  **Install dependencies:**
+    ```bash
+    # Ensure you are inside the activated virtual environment
+    pip install -r requirements.txt
+    ```
+
+### 3. Ollama Model Setup
+
+Pull the LLM model required for the application:
 ```bash
 ollama pull llama3.2:3b
 ```
 
-### 4. Install Tesseract OCR
+### 4. Run the Application
+```bash
+python main.py
+```
 
-This project uses Tesseract for Optical Character Recognition (OCR) to extract text from PDF resumes.
-
-- **macOS:**
-  ```bash
-  brew install tesseract
-  ```
-
-- **Windows:**
-  1. Download the Tesseract installer from the [UB-Mannheim repository](https://github.com/UB-Mannheim/tesseract/wiki).
-  2. Run the installer and be sure to note the installation path.
-  3. Add the Tesseract installation directory (e.g., `C:\Program Files\Tesseract-OCR`) to your system's `PATH` environment variable.
-
-- **Linux (Debian/Ubuntu):**
-  ```bash
-  sudo apt update
-  sudo apt install tesseract-ocr
-  ```
