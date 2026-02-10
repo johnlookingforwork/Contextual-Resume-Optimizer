@@ -1,9 +1,3 @@
-pytesseract
-pandas
-numpy
-scikit-learn
-langchain
-llama-index
 pydantic
 streamlit
 PyMuPDF
