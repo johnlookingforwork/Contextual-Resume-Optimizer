@@ -24,8 +24,10 @@ The system is built on a modular microservices architecture:
 ## 🛠️ Technical Stack
 
 - **Language:** Python
+- **LLM Providers:** OpenAI (GPT-4o, primary) / Ollama (local/free fallback)
 - **LLM Orchestration:** LangChain / LlamaIndex
 - **Validation:** Pydantic (Strict data typing)
+- **PDF Generation:** ReportLab (ATS-friendly output)
 - **Frontend:** Streamlit
 
 ## 📈 Evaluation Metrics
@@ -68,7 +70,7 @@ Follow these steps to set up your project environment:
     python3 -m venv venv
 
     # Activate the environment
-    source venv/bin/activate 
+    source venv/bin/activate
     # On Windows, use: venv\Scripts\activate
     ```
 
@@ -78,15 +80,49 @@ Follow these steps to set up your project environment:
     pip install -r requirements.txt
     ```
 
-### 3. Ollama Model Setup
+### 3. LLM Provider Setup
 
-Pull the LLM model required for the application:
+The app supports two LLM providers. Choose one (or both):
+
+#### Option A: OpenAI (Recommended)
+
+**For the web app (Streamlit):** Create `.streamlit/secrets.toml` in the project root:
+```toml
+[openai]
+api_key = "sk-your-actual-key-here"
+```
+This file is gitignored. On Streamlit Community Cloud, add the same key via the Secrets UI in app settings.
+
+**For the CLI:** Set the `OPENAI_API_KEY` environment variable:
+```bash
+export OPENAI_API_KEY="sk-your-actual-key-here"
+python main.py
+```
+
+#### Option B: Ollama (Local / Free)
+
+Install Ollama from [ollama.com](https://ollama.com/download), then pull the model:
 ```bash
 ollama pull llama3.2:3b
 ```
+The app falls back to Ollama automatically when no OpenAI key is configured.
 
-### 4. Run the Application
+### 4. Run the Web App (Streamlit)
+Launch the Streamlit UI to upload a resume, paste a job description, and get a tailored resume + cover letter:
+```bash
+streamlit run app.py
+```
+
+### 5. Run the CLI Pipeline
+Alternatively, run the full pipeline from the command line:
 ```bash
 python main.py
 ```
+
+### 6. Generate ATS-Friendly PDF (CLI)
+After running the CLI pipeline, generate a PDF resume ready for job applications:
+```bash
+python generator.py
+```
+The PDF will be saved to `output/tailored_resume.pdf`.
 

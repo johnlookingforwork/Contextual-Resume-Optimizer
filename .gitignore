@@ -210,3 +210,11 @@ __marimo__/
 data/
 *.pdf
 .DS_Store
+
+# Cache directory for structured JSON outputs
+cache/
+
+# Streamlit secrets (API keys)
+.streamlit/secrets.toml
+
+.claude/

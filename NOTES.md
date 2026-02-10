@@ -20,3 +20,16 @@ Local Processing & Privacy: Since the model runs on your hardware, sensitive dat
 Seamless Integration: Ollama provides a local API endpoint. This allows you to send raw text (like your extracted resume data) to the model and receive a generated response that you can then pipe directly into a Pydantic schema for validation.
 
 Resource Efficiency: It is highly optimized to run on consumer-grade hardware (like Mac, Linux, or Windows), making it possible to build and test sophisticated AI applications without expensive server costs.
+
+## What is ReportLab?
+
+ReportLab is an open-source Python library for programmatically creating PDF documents. Rather than designing a PDF visually in a tool like Word or Google Docs, you write Python code that defines the layout, text, fonts, and styling—and ReportLab renders it into a `.pdf` file.
+
+Think of it as a "printing press" that your code controls: you feed it structured data (like a JSON object) and it produces a polished, formatted document.
+
+Why it matters:
+ATS Compatibility: Applicant Tracking Systems (ATS) parse uploaded resumes to extract text. ReportLab generates PDFs with real, selectable text and standard fonts (like Helvetica), which ATS parsers can reliably read. This is unlike screenshot-based or image-heavy PDFs that ATS systems often fail to parse.
+
+Automation: Since the PDF is generated from code, the entire pipeline—from AI-tailored JSON to finished resume—can run in a single command without any manual formatting step.
+
+Full Layout Control: ReportLab gives precise control over margins, font sizes, spacing, and section ordering, ensuring a clean single-column layout that is both human-readable and machine-parsable.

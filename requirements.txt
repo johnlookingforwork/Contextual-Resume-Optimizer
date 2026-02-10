@@ -8,4 +8,6 @@ pydantic
 streamlit
 PyMuPDF
 ollama
+openai
 tqdm
+reportlab

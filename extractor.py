@@ -8,6 +8,21 @@ class ResumeData(BaseModel):
     page_count: int
     metadata: dict
 
+def extract_resume_text_from_bytes(pdf_bytes: bytes) -> ResumeData:
+    """Extracts text and metadata from in-memory PDF bytes (e.g. Streamlit upload)."""
+    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    full_text = ""
+
+    for page in doc:
+        full_text += page.get_text() + "\n"
+
+    return ResumeData(
+        raw_text=full_text,
+        page_count=len(doc),
+        metadata=doc.metadata
+    )
+
+
 def extract_resume_text(pdf_path: str) -> ResumeData:
     """Extracts text and metadata from a PDF file."""
     doc = fitz.open(pdf_path)
