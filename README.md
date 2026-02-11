@@ -1,5 +1,7 @@
 # Contextual-Resume-Optimizer
 
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://contextual-resume-optimizer-7gzdnapsund6bkmgtu6evx.streamlit.app/)
+
 This app helps job applicants tailor their resume to a specific job description using NLP and RAG.
 
 ## 📌 Project Overview
