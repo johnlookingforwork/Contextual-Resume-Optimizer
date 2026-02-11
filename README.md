@@ -24,7 +24,7 @@ The system is built on a modular microservices architecture:
 ## 🛠️ Technical Stack
 
 - **Language:** Python
-- **LLM Providers:** OpenAI (GPT-4o, primary) / Ollama (local/free fallback)
+- **LLM Provider:** OpenAI (GPT-4o)
 - **LLM Orchestration:** LangChain / LlamaIndex
 - **Validation:** Pydantic (Strict data typing)
 - **PDF Generation:** ReportLab (ATS-friendly output)
@@ -48,7 +48,7 @@ While the practical application assists candidates in navigating modern recruitm
 Before you begin, ensure you have the following installed on your system:
 
 - **Python 3.10+**
-- **Ollama:** Download and install from [ollama.com](https://ollama.com/download).
+- **OpenAI API key:** Get one at [platform.openai.com](https://platform.openai.com/api-keys)
 - **Tesseract OCR:**
     - **macOS:** `brew install tesseract`
     - **Windows:** Follow the instructions on the [Tesseract Wiki](https://github.com/UB-Mannheim/tesseract/wiki).
@@ -80,11 +80,7 @@ Follow these steps to set up your project environment:
     pip install -r requirements.txt
     ```
 
-### 3. LLM Provider Setup
-
-The app supports two LLM providers. Choose one (or both):
-
-#### Option A: OpenAI (Recommended)
+### 3. OpenAI API Key
 
 **For the web app (Streamlit):** Create `.streamlit/secrets.toml` in the project root:
 ```toml
@@ -98,14 +94,6 @@ This file is gitignored. On Streamlit Community Cloud, add the same key via the 
 export OPENAI_API_KEY="sk-your-actual-key-here"
 python main.py
 ```
-
-#### Option B: Ollama (Local / Free)
-
-Install Ollama from [ollama.com](https://ollama.com/download), then pull the model:
-```bash
-ollama pull llama3.2:3b
-```
-The app falls back to Ollama automatically when no OpenAI key is configured.
 
 ### 4. Run the Web App (Streamlit)
 Launch the Streamlit UI to upload a resume, paste a job description, and get a tailored resume + cover letter:

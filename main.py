@@ -12,14 +12,8 @@ def main():
     raw_resume = extract_resume_text(resume_path)
     raw_job_text = extract_text_from_image(job_desc_path)
 
-    # Provider selection: use OpenAI if key is set, otherwise Ollama
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if api_key:
-        print("--- Step 2: Initializing the AI Brain (OpenAI) ---")
-        brain = ResumeBrain(provider="openai", api_key=api_key)
-    else:
-        print("--- Step 2: Initializing the AI Brain (Ollama) ---")
-        brain = ResumeBrain(provider="ollama")
+    print("--- Step 2: Initializing the AI Brain (OpenAI) ---")
+    brain = ResumeBrain(api_key=os.environ.get("OPENAI_API_KEY"))
     
     print("--- Step 3: Structuring the Resume ---")
     # This calls your brain.py logic to talk to Ollama

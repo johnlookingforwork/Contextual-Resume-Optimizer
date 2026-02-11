@@ -1,7 +1,5 @@
 import json
-import re
 import hashlib
-import os
 from pathlib import Path
 from typing import List
 from models import (
@@ -15,23 +13,14 @@ from models import (
     Experience,
     CoverLetter,
 )
-from tqdm import tqdm
-import time
 
 class ResumeBrain:
-    def __init__(self, provider="openai", model_name=None, api_key=None, cache_dir="cache"):
-        self.provider = provider
+    def __init__(self, model_name="gpt-4o", api_key=None, cache_dir="cache"):
+        from openai import OpenAI
+        self.model_name = model_name
+        self.client = OpenAI(api_key=api_key)
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(exist_ok=True)
-
-        if provider == "openai":
-            from openai import OpenAI
-            self.model_name = model_name or "gpt-4o"
-            self.openai_client = OpenAI(api_key=api_key)
-        else:
-            import ollama
-            self.ollama = ollama
-            self.model_name = model_name or "llama3.2:3b"
 
     def _get_cache_key(self, text: str) -> str:
         """Generate a hash-based cache key from input text."""
@@ -61,126 +50,16 @@ class ResumeBrain:
         except Exception as e:
             print(f"Warning: Failed to save cache to {cache_path}: {e}")
 
-    def _fix_stringified_arrays(self, json_str: str) -> str:
-        """Fix description fields that are stringified arrays instead of actual arrays."""
-        # Pattern: "description": "[\"item1\", \"item2\"]"
-        # Should be: "description": ["item1", "item2"]
-
-        # Fix stringified arrays in description fields
-        pattern = r'"description":\s*"\[(.*?)\]"'
-
-        def replace_func(match):
-            # Extract the stringified array content
-            array_content = match.group(1)
-            # Remove the outer quotes and return as an actual array
-            return f'"description": [{array_content}]'
-
-        fixed = re.sub(pattern, replace_func, json_str)
-        return fixed
-
-    def _clean_json_response(self, response: str) -> str:
-        """Clean and fix common JSON formatting issues from LLM responses."""
-        # Remove markdown code blocks
-        cleaned = response.strip()
-
-        # Remove markdown JSON code blocks
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-
-        cleaned = cleaned.strip()
-
-        # Replace control characters that are invalid in JSON strings
-        # We need to be careful to only replace them in string contexts
-        # A simpler approach: replace common problematic characters globally
-        # JSON strings should have these escaped
-        control_char_map = {
-            '\n': '\\n',
-            '\r': '\\r',
-            '\t': '\\t',
-            '\b': '\\b',
-            '\f': '\\f',
-        }
-
-        for char, escaped in control_char_map.items():
-            # Only replace if not already escaped
-            cleaned = re.sub(f'(?<!\\\\){re.escape(char)}', escaped, cleaned)
-
-        # Fix stringified arrays (common LLM mistake)
-        cleaned = self._fix_stringified_arrays(cleaned)
-
-        return cleaned
-
-    def _stream_and_structure(self, prompt: str, description: str):
-        """Helper function to call LLM and return parsed JSON dict."""
-
-        if self.provider == "openai":
-            return self._openai_call(prompt, description)
-        else:
-            return self._ollama_call(prompt, description)
-
-    def _openai_call(self, prompt: str, description: str) -> dict:
-        """Call OpenAI API with JSON mode and return parsed dict."""
+    def _stream_and_structure(self, prompt: str, description: str) -> dict:
+        """Call OpenAI with JSON mode and return parsed dict."""
         print(f"  [{description}] Calling OpenAI ({self.model_name})...")
-        response = self.openai_client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content
         return json.loads(content)
-
-    def _ollama_call(self, prompt: str, description: str) -> dict:
-        """Call Ollama with streaming and return parsed dict."""
-        stream = self.ollama.generate(
-            model=self.model_name,
-            prompt=prompt,
-            stream=True,
-            format='json'
-        )
-
-        response_chunks = []
-
-        with tqdm(desc=description, unit=" B", unit_scale=True, total=0) as pbar:
-            for chunk in stream:
-                if 'response' in chunk:
-                    response_chunks.append(chunk['response'])
-                    pbar.update(len(chunk['response'].encode('utf-8')))
-
-                if chunk.get('done'):
-                    if 'total_duration' in chunk and 'eval_count' in chunk:
-                        duration_seconds = chunk['total_duration'] / 1e9
-                        if duration_seconds > 0:
-                            tokens_per_second = chunk['eval_count'] / duration_seconds
-                            pbar.set_postfix_str(f"{tokens_per_second:.2f} tok/s")
-                    if pbar.total == 0:
-                        pbar.total = pbar.n
-                    pbar.refresh()
-                    break
-
-        full_response = "".join(response_chunks)
-
-        try:
-            cleaned_response = self._clean_json_response(full_response)
-            data = json.loads(cleaned_response)
-        except json.JSONDecodeError as e:
-            print("Error: LLM response was not valid JSON.")
-            print(f"JSON Error: {e}")
-            print(f"Error at line {e.lineno}, column {e.colno}: {e.msg}")
-            print("\nProblematic section:")
-            lines = cleaned_response.split('\n')
-            start = max(0, e.lineno - 3)
-            end = min(len(lines), e.lineno + 2)
-            for i in range(start, end):
-                marker = ">>> " if i == e.lineno - 1 else "    "
-                print(f"{marker}{i + 1}: {lines[i]}")
-            raise ValueError("LLM response could not be parsed as JSON.")
-
-        return data
 
     def structure_resume(self, raw_text: str) -> ResumeSchema:
         """Uses LLM to turn raw text into a structured JSON format."""
@@ -713,10 +592,5 @@ class ResumeBrain:
 
 
 if __name__ == "__main__":
-    # This is for a quick isolated test
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if api_key:
-        brain = ResumeBrain(provider="openai", api_key=api_key)
-    else:
-        brain = ResumeBrain(provider="ollama")
-    print(f"Brain initialized with provider={brain.provider}, model={brain.model_name}")
+    brain = ResumeBrain()
+    print(f"Brain initialized with model={brain.model_name}")

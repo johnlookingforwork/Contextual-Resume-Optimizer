@@ -6,13 +6,13 @@ from generator import generate_resume_pdf_bytes, generate_cover_letter_pdf_bytes
 st.set_page_config(page_title="Resume Optimizer", layout="wide")
 st.title("Contextual Resume Optimizer")
 
-# ── Provider setup ──────────────────────────────────────────────
+# ── API key setup ───────────────────────────────────────────────
 try:
     openai_api_key = st.secrets["openai"]["api_key"]
-    if openai_api_key.startswith("sk-your-"):
-        raise KeyError("placeholder key")
 except (KeyError, FileNotFoundError):
-    openai_api_key = None
+    st.error("OpenAI API key not found. Add it to `.streamlit/secrets.toml` "
+             "or configure it in Streamlit Cloud's Secrets settings.")
+    st.stop()
 
 # ── Sidebar: Inputs ──────────────────────────────────────────────
 with st.sidebar:
@@ -26,12 +26,7 @@ if run_button:
     if not uploaded_file or not job_text.strip():
         st.warning("Please upload a resume PDF and paste a job description.")
     else:
-        if openai_api_key:
-            brain = ResumeBrain(provider="openai", api_key=openai_api_key)
-        else:
-            st.warning("No OpenAI API key found. Falling back to local Ollama. "
-                       "Set your key in `.streamlit/secrets.toml` for OpenAI.")
-            brain = ResumeBrain(provider="ollama")
+        brain = ResumeBrain(api_key=openai_api_key)
         pdf_bytes = uploaded_file.read()
 
         # Step 1 — Extract
