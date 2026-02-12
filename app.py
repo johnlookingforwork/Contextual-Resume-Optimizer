@@ -51,7 +51,7 @@ if run_button:
 
         # Step 5 — Tailor resume
         with st.status("Tailoring resume...", expanded=False) as s:
-            tailored = brain.tailor_resume(structured_resume, analysis)
+            tailored = brain.tailor_resume(structured_resume, analysis, structured_job)
             s.update(label="Resume tailored", state="complete")
 
         # Step 6 — Cover letter
@@ -113,7 +113,8 @@ if "analysis" in st.session_state:
     # ── Tab 2: Tailored Resume ───────────────────────────────────
     with tab_resume:
         st.subheader("Updated Skills")
-        st.write(" | ".join(tailored.updated_skills))
+        for category, skill_list in tailored.updated_skills.items():
+            st.markdown(f"**{category}:** {', '.join(skill_list)}")
 
         st.subheader("Tailored Work History")
         for exp in tailored.tailored_work_history:
@@ -121,6 +122,27 @@ if "analysis" in st.session_state:
             for bullet in exp.tailored_bullet_points:
                 st.write(f"- {bullet}")
             st.divider()
+
+        if tailored.tailored_projects:
+            st.subheader("Projects")
+            for proj in tailored.tailored_projects:
+                title = f"**{proj.name}**"
+                if proj.url:
+                    title += f" | {proj.url}"
+                st.markdown(title)
+                st.markdown(f"*Tech Stack: {', '.join(proj.tech_stack)}*")
+                for bullet in proj.tailored_bullet_points:
+                    st.write(f"- {bullet}")
+                st.divider()
+
+        if tailored.tailored_education:
+            st.subheader("Education")
+            for edu in tailored.tailored_education:
+                st.markdown(f"**{edu.degree}**")
+                parts = [edu.institution]
+                if edu.graduation_date:
+                    parts.append(edu.graduation_date)
+                st.write(" | ".join(parts))
 
     # ── Tab 3: Cover Letter ──────────────────────────────────────
     with tab_cover:

@@ -14,17 +14,19 @@ def main():
 
     print("--- Step 2: Initializing the AI Brain (OpenAI) ---")
     brain = ResumeBrain(api_key=os.environ.get("OPENAI_API_KEY"))
-    
+
     print("--- Step 3: Structuring the Resume ---")
     # This calls your brain.py logic to talk to Ollama
     structured_resume = brain.structure_resume(raw_resume.raw_text)
-    
+
     print("--- Step 4: Structuring the Job Description ---")
     structured_job_desc = brain.structure_job_description(raw_job_text)
 
     print("\n--- Success! Structured Resume Data: ---")
     print(f"Name: {structured_resume.name}")
-    print(f"Skills Identified: {', '.join(structured_resume.skills)}")
+    print("Skills Identified:")
+    for category, skill_list in structured_resume.skills.items():
+        print(f"  {category}: {', '.join(skill_list)}")
 
     print("\n--- Success! Structured Job Description Data: ---")
     print(f"Job Title: {structured_job_desc.title}")
@@ -68,21 +70,31 @@ def main():
 
     # Phase 3: Resume Tailoring
     print("\n--- Step 6: Tailoring Resume ---")
-    tailored_resume = brain.tailor_resume(structured_resume, analysis)
+    tailored_resume = brain.tailor_resume(structured_resume, analysis, structured_job_desc)
 
     print("\n" + "="*60)
     print("TAILORED RESUME")
     print("="*60)
 
     print("\n✨ Updated Skills:")
-    print(f"  {', '.join(tailored_resume.updated_skills)}")
+    for category, skill_list in tailored_resume.updated_skills.items():
+        print(f"  {category}: {', '.join(skill_list)}")
 
     print("\n📝 Tailored Work History:")
     for exp in tailored_resume.tailored_work_history:
         print(f"\n  🏢 {exp.company} - {exp.role} ({exp.duration})")
         for bullet in exp.tailored_bullet_points:
             print(f"    • {bullet}")
-    
+
+    if tailored_resume.tailored_projects:
+        print("\n🔧 Tailored Projects:")
+        for proj in tailored_resume.tailored_projects:
+            print(f"\n  📂 {proj.name} ({', '.join(proj.tech_stack)})")
+            if proj.url:
+                print(f"     {proj.url}")
+            for bullet in proj.tailored_bullet_points:
+                print(f"    • {bullet}")
+
     print("\n" + "="*60)
 
     # Save tailored resume to file

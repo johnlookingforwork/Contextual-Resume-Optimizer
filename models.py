@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Literal
+from typing import Dict, List, Optional, Literal
 
 # ==================== Phase 1: Data Schemas ====================
 
@@ -9,14 +9,28 @@ class Experience(BaseModel):
     duration: str
     description: List[str]
 
+class Education(BaseModel):
+    institution: str
+    degree: str
+    graduation_date: Optional[str] = None
+    entry_type: Literal["degree", "certification", "bootcamp"] = "degree"
+
+class Project(BaseModel):
+    name: str
+    description: List[str]
+    tech_stack: List[str]
+    url: Optional[str] = None
+
 class ResumeSchema(BaseModel):
     name: str
     email: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
-    skills: List[str]
+    links: List[str] = []
+    skills: Dict[str, List[str]]
     work_history: List[Experience]
-    education: List[dict]
+    education: List[Education]
+    projects: List[Project] = []
 
 class JobDescriptionSchema(BaseModel):
     title: str
@@ -69,10 +83,18 @@ class TailoredExperience(BaseModel):
     duration: str
     tailored_bullet_points: List[str] = Field(description="Rewritten bullet points aligned with the job description")
 
+class TailoredProject(BaseModel):
+    name: str
+    tailored_bullet_points: List[str]
+    tech_stack: List[str]
+    url: Optional[str] = None
+
 class TailoredResume(BaseModel):
     """Represents the complete, tailored resume."""
     tailored_work_history: List[TailoredExperience] = Field(description="List of work experiences with tailored descriptions")
-    updated_skills: List[str] = Field(description="The original skills plus any new skills suggested from gaps")
+    updated_skills: Dict[str, List[str]] = Field(description="Categorized skills dict with gap keywords added")
+    tailored_projects: List[TailoredProject] = []
+    tailored_education: List[Education] = []
 
 # ==================== Phase 4: Cover Letter Schema ====================
 

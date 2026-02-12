@@ -144,6 +144,26 @@ def _build_styles() -> dict:
         textColor=HexColor("#555555"),
     )
 
+    styles["ProjectTitle"] = ParagraphStyle(
+        "ProjectTitle",
+        parent=base["Normal"],
+        fontName="Helvetica-Bold",
+        fontSize=10.5,
+        leading=14,
+        spaceAfter=1,
+        textColor=HexColor("#1a1a1a"),
+    )
+
+    styles["ProjectMeta"] = ParagraphStyle(
+        "ProjectMeta",
+        parent=base["Normal"],
+        fontName="Helvetica-Oblique",
+        fontSize=10,
+        leading=13,
+        spaceAfter=3,
+        textColor=HexColor("#555555"),
+    )
+
     return styles
 
 
@@ -156,6 +176,114 @@ def _section_divider():
         spaceBefore=2,
         spaceAfter=6,
     )
+
+
+def _build_header(story, styles, base_resume):
+    """Build the header section: Name | email | links."""
+    name = base_resume.get("name", "")
+    email = base_resume.get("email", "")
+    links = base_resume.get("links", [])
+
+    story.append(Paragraph(name, styles["Name"]))
+    contact_parts = [p for p in [email] + links if p]
+    if contact_parts:
+        story.append(Paragraph(" | ".join(contact_parts), styles["Contact"]))
+    story.append(_section_divider())
+
+
+def _build_skills(story, styles, tailored):
+    """Build the categorized skills section."""
+    skills = tailored.get("updated_skills", {})
+    if not skills:
+        return
+
+    story.append(Paragraph("SKILLS", styles["SectionHeader"]))
+    story.append(_section_divider())
+
+    # Handle both dict (categorized) and list (legacy flat) formats
+    if isinstance(skills, dict):
+        for category, skill_list in skills.items():
+            if skill_list:
+                text = f"<b>{category}:</b> {', '.join(skill_list)}"
+                story.append(Paragraph(text, styles["SkillText"]))
+    else:
+        story.append(Paragraph(" | ".join(skills), styles["SkillText"]))
+
+    story.append(Spacer(1, 4))
+
+
+def _build_experience(story, styles, tailored):
+    """Build the work experience section."""
+    work_history = tailored.get("tailored_work_history", [])
+    if not work_history:
+        return
+
+    story.append(Paragraph("PROFESSIONAL EXPERIENCE", styles["SectionHeader"]))
+    story.append(_section_divider())
+
+    for job in work_history:
+        company = job.get("company", "")
+        role = job.get("role", "")
+        duration = job.get("duration", "")
+
+        story.append(Paragraph(f"{role}", styles["JobTitle"]))
+        story.append(Paragraph(f"{company} | {duration}", styles["JobMeta"]))
+
+        for bullet in job.get("tailored_bullet_points", []):
+            clean = bullet.lstrip("- ")
+            story.append(Paragraph(f"&bull;  {clean}", styles["Bullet"]))
+        story.append(Spacer(1, 6))
+
+
+def _build_projects(story, styles, tailored):
+    """Build the projects section."""
+    projects = tailored.get("tailored_projects", [])
+    if not projects:
+        return
+
+    story.append(Paragraph("PROJECTS", styles["SectionHeader"]))
+    story.append(_section_divider())
+
+    for proj in projects:
+        name = proj.get("name", "")
+        url = proj.get("url", "")
+        tech_stack = proj.get("tech_stack", [])
+
+        title_parts = [name]
+        if url:
+            title_parts.append(url)
+        story.append(Paragraph(" | ".join(title_parts), styles["ProjectTitle"]))
+
+        if tech_stack:
+            story.append(
+                Paragraph(
+                    f"<b>Tech Stack:</b> {', '.join(tech_stack)}",
+                    styles["ProjectMeta"],
+                )
+            )
+
+        for bullet in proj.get("tailored_bullet_points", []):
+            clean = bullet.lstrip("- ")
+            story.append(Paragraph(f"&bull;  {clean}", styles["Bullet"]))
+        story.append(Spacer(1, 6))
+
+
+def _build_education(story, styles, tailored, base_resume):
+    """Build the education section from tailored_education, falling back to base_resume."""
+    education = tailored.get("tailored_education", []) or base_resume.get("education", [])
+    if not education:
+        return
+
+    story.append(Paragraph("EDUCATION", styles["SectionHeader"]))
+    story.append(_section_divider())
+
+    for edu in education:
+        degree = edu.get("degree", "")
+        institution = edu.get("institution", "")
+        grad_date = edu.get("graduation_date", "")
+
+        story.append(Paragraph(degree, styles["EduTitle"]))
+        story.append(Paragraph(f"{institution} | {grad_date}", styles["EduMeta"]))
 
 
 def generate_pdf(output_filename: str = "tailored_resume.pdf") -> Path:
@@ -185,66 +313,12 @@ def generate_pdf(output_filename: str = "tailored_resume.pdf") -> Path:
 
     story = []
 
-    # --- Header: Name & Contact ---
-    name = base_resume.get("name", "")
-    email = base_resume.get("email", "")
-    phone = base_resume.get("phone", "")
-    location = base_resume.get("location", "")
-
-    story.append(Paragraph(name, styles["Name"]))
-    contact_parts = [p for p in [email, phone, location] if p]
-    if contact_parts:
-        story.append(Paragraph(" | ".join(contact_parts), styles["Contact"]))
-    story.append(_section_divider())
-
-    # --- Skills ---
-    skills = tailored.get("updated_skills", [])
-    if skills:
-        story.append(Paragraph("SKILLS", styles["SectionHeader"]))
-        story.append(_section_divider())
-        skills_text = " | ".join(skills)
-        story.append(Paragraph(skills_text, styles["SkillText"]))
-        story.append(Spacer(1, 4))
-
-    # --- Work Experience ---
-    work_history = tailored.get("tailored_work_history", [])
-    if work_history:
-        story.append(Paragraph("PROFESSIONAL EXPERIENCE", styles["SectionHeader"]))
-        story.append(_section_divider())
-
-        for job in work_history:
-            company = job.get("company", "")
-            role = job.get("role", "")
-            duration = job.get("duration", "")
-
-            story.append(Paragraph(f"{role}", styles["JobTitle"]))
-            story.append(Paragraph(f"{company} | {duration}", styles["JobMeta"]))
-
-            for bullet in job.get("tailored_bullet_points", []):
-                clean = bullet.lstrip("- ")
-                story.append(
-                    Paragraph(
-                        f"&bull;  {clean}",
-                        styles["Bullet"],
-                    )
-                )
-            story.append(Spacer(1, 6))
-
-    # --- Education ---
-    education = base_resume.get("education", [])
-    if education:
-        story.append(Paragraph("EDUCATION", styles["SectionHeader"]))
-        story.append(_section_divider())
-
-        for edu in education:
-            degree = edu.get("degree", "")
-            institution = edu.get("institution", "")
-            grad_date = edu.get("graduation_date", "")
-
-            story.append(Paragraph(degree, styles["EduTitle"]))
-            story.append(
-                Paragraph(f"{institution} | {grad_date}", styles["EduMeta"])
-            )
+    # Section order: Header -> Skills -> Experience -> Projects -> Education
+    _build_header(story, styles, base_resume)
+    _build_skills(story, styles, tailored)
+    _build_experience(story, styles, tailored)
+    _build_projects(story, styles, tailored)
+    _build_education(story, styles, tailored, base_resume)
 
     doc.build(story)
     return output_path
@@ -270,57 +344,12 @@ def generate_resume_pdf_bytes(base_resume: dict, tailored: dict) -> BytesIO:
 
     story = []
 
-    # --- Header ---
-    name = base_resume.get("name", "")
-    email = base_resume.get("email", "")
-    phone = base_resume.get("phone", "")
-    location = base_resume.get("location", "")
-
-    story.append(Paragraph(name, styles["Name"]))
-    contact_parts = [p for p in [email, phone, location] if p]
-    if contact_parts:
-        story.append(Paragraph(" | ".join(contact_parts), styles["Contact"]))
-    story.append(_section_divider())
-
-    # --- Skills ---
-    skills = tailored.get("updated_skills", [])
-    if skills:
-        story.append(Paragraph("SKILLS", styles["SectionHeader"]))
-        story.append(_section_divider())
-        story.append(Paragraph(" | ".join(skills), styles["SkillText"]))
-        story.append(Spacer(1, 4))
-
-    # --- Work Experience ---
-    work_history = tailored.get("tailored_work_history", [])
-    if work_history:
-        story.append(Paragraph("PROFESSIONAL EXPERIENCE", styles["SectionHeader"]))
-        story.append(_section_divider())
-        for job in work_history:
-            story.append(Paragraph(job.get("role", ""), styles["JobTitle"]))
-            story.append(
-                Paragraph(
-                    f"{job.get('company', '')} | {job.get('duration', '')}",
-                    styles["JobMeta"],
-                )
-            )
-            for bullet in job.get("tailored_bullet_points", []):
-                clean = bullet.lstrip("- ")
-                story.append(Paragraph(f"&bull;  {clean}", styles["Bullet"]))
-            story.append(Spacer(1, 6))
-
-    # --- Education ---
-    education = base_resume.get("education", [])
-    if education:
-        story.append(Paragraph("EDUCATION", styles["SectionHeader"]))
-        story.append(_section_divider())
-        for edu in education:
-            story.append(Paragraph(edu.get("degree", ""), styles["EduTitle"]))
-            story.append(
-                Paragraph(
-                    f"{edu.get('institution', '')} | {edu.get('graduation_date', '')}",
-                    styles["EduMeta"],
-                )
-            )
+    # Section order: Header -> Skills -> Experience -> Projects -> Education
+    _build_header(story, styles, base_resume)
+    _build_skills(story, styles, tailored)
+    _build_experience(story, styles, tailored)
+    _build_projects(story, styles, tailored)
+    _build_education(story, styles, tailored, base_resume)
 
     doc.build(story)
     buf.seek(0)

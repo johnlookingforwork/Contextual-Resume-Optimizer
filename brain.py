@@ -1,7 +1,8 @@
+import copy
 import json
 import hashlib
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from models import (
     ResumeSchema,
     JobDescriptionSchema,
@@ -10,7 +11,9 @@ from models import (
     AnalysisResult,
     TailoredResume,
     TailoredExperience,
+    TailoredProject,
     Experience,
+    Project,
     CoverLetter,
 )
 
@@ -61,6 +64,10 @@ class ResumeBrain:
         content = response.choices[0].message.content
         return json.loads(content)
 
+    def _flatten_skills(self, skills: dict) -> list:
+        """Flatten a categorized skills dict into a single list for prompt injection."""
+        return [s for cat in skills.values() for s in cat]
+
     def structure_resume(self, raw_text: str) -> ResumeSchema:
         """Uses LLM to turn raw text into a structured JSON format."""
 
@@ -70,6 +77,9 @@ class ResumeBrain:
 
         if cached_data is not None:
             print(f"Loading resume from cache: {cache_path}")
+            # Fallback: if cached skills is a flat list, wrap it
+            if isinstance(cached_data.get("skills"), list):
+                cached_data["skills"] = {"General": cached_data["skills"]}
             return ResumeSchema(**cached_data)
 
         print("Cache not found, processing with LLM...")
@@ -79,41 +89,67 @@ class ResumeBrain:
   "email": "jane@example.com",
   "phone": "(555) 123-4567",
   "location": "Dallas, TX",
-  "skills": ["Python", "JavaScript", "SQL"],
+  "links": ["github.com/janesmith", "linkedin.com/in/janesmith"],
+  "skills": {
+    "Languages": ["Python", "JavaScript", "SQL"],
+    "Frameworks": ["React", "Django", "Flask"],
+    "Tools": ["Docker", "Git", "AWS", "PostgreSQL"]
+  },
   "work_history": [
     {
       "company": "Tech Corp",
       "role": "Software Engineer",
       "duration": "2020-2023",
       "description": [
-        "Built scalable web applications",
-        "Improved system performance by 40%"
+        "Built scalable web applications serving 10K+ users",
+        "Improved system performance by 40% through query optimization"
       ]
+    }
+  ],
+  "projects": [
+    {
+      "name": "E-Commerce Platform",
+      "description": [
+        "Built a full-stack e-commerce platform with payment integration",
+        "Implemented real-time inventory tracking with WebSockets"
+      ],
+      "tech_stack": ["React", "Node.js", "PostgreSQL", "Stripe"],
+      "url": "github.com/janesmith/ecommerce"
     }
   ],
   "education": [
     {
-      "institution": "University Name",
+      "institution": "University of Texas",
       "degree": "B.S. Computer Science",
-      "graduation_date": "2020"
+      "graduation_date": "2020",
+      "entry_type": "degree"
     }
   ]
 }'''
 
         prompt = f"""
-        You are an expert HR Data Scientist. Convert the resume text into a valid JSON object.
+        You are an expert HR Data Scientist specializing in Software Engineering resumes.
+        Convert the resume text into a valid JSON object.
 
         REQUIRED JSON STRUCTURE (follow this exact format):
         {example_json}
 
         CRITICAL RULES:
         1. The "description" field MUST be an array of strings, NOT a stringified array
-        2. Each education entry should be a simple object with keys like "institution", "degree", "graduation_date"
-        3. Return ONLY the JSON object - no extra text, markdown, or explanations
-        4. Ensure all arrays and objects are properly formatted
-        5. Do not include any JSON Schema keywords like "type", "properties", "additionalProperties"
-        6. Extract the phone number exactly as it appears on the resume. If not found, set "phone" to null
-        7. Extract the city and state (e.g. "Dallas, TX") as "location". If not found, set "location" to null
+        2. Return ONLY the JSON object - no extra text, markdown, or explanations
+        3. Ensure all arrays and objects are properly formatted
+        4. Do not include any JSON Schema keywords like "type", "properties", "additionalProperties"
+        5. Extract the phone number exactly as it appears on the resume. If not found, set "phone" to null
+        6. Extract the city and state (e.g. "Dallas, TX") as "location". If not found, set "location" to null
+        7. Do NOT extract any Summary or Objective section content
+        8. "skills" MUST be a dictionary grouped by category (e.g. "Languages", "Frameworks", "Tools", "Cloud", "Databases").
+           Filter out fluff skills like Microsoft Office, Communication, Teamwork, Leadership, Detail-oriented, etc.
+           Only include technical skills relevant to software engineering.
+        9. If the resume has a Projects section, extract each project with name, description (bullet points), tech_stack, and url (if present).
+           If no Projects section exists, set "projects" to an empty array [].
+        10. Each education entry must include "entry_type" classified as "degree", "certification", or "bootcamp".
+        11. Extract links: GitHub, LinkedIn, portfolio URLs, or personal website URLs into the "links" array.
+            If none found, set "links" to an empty array [].
 
         Here is the resume text to convert:
         ---RESUME START---
@@ -124,6 +160,10 @@ class ResumeBrain:
         """
 
         data = self._stream_and_structure(prompt, "Structuring Resume")
+
+        # Fallback: if LLM returns skills as a flat list, wrap it
+        if isinstance(data.get("skills"), list):
+            data["skills"] = {"General": data["skills"]}
 
         # Save to cache
         self._save_to_cache(cache_path, data)
@@ -204,8 +244,8 @@ class ResumeBrain:
 
         print("Analyzing semantic skill matches...")
 
-        # Prepare resume content for analysis
-        resume_skills = resume.skills
+        # Flatten categorized skills for prompt
+        resume_skills = self._flatten_skills(resume.skills)
         resume_experiences = []
         for exp in resume.work_history:
             resume_experiences.extend(exp.description)
@@ -295,6 +335,9 @@ class ResumeBrain:
         # Extract what's already matched to avoid duplicates
         matched_job_requirements = [match.job_requirement for match in existing_matches]
 
+        # Flatten categorized skills for prompt
+        flat_skills = self._flatten_skills(resume.skills)
+
         example_json = '''{
   "gaps": [
     {
@@ -317,7 +360,7 @@ class ResumeBrain:
         prompt = f"""
         You are an ATS (Applicant Tracking System) expert analyzing keyword gaps between a resume and job description.
 
-        RESUME SKILLS: {resume.skills}
+        RESUME SKILLS: {flat_skills}
         RESUME WORK HISTORY: {[exp.description for exp in resume.work_history][:15]}
 
         JOB REQUIRED SKILLS: {job_description.required_skills}
@@ -419,70 +462,167 @@ class ResumeBrain:
 
     # ==================== Phase 3: Resume Tailoring Engine ====================
 
-    def tailor_resume(self, resume: ResumeSchema, analysis: AnalysisResult) -> TailoredResume:
+    def tailor_resume(
+        self,
+        resume: ResumeSchema,
+        analysis: AnalysisResult,
+        job_description: JobDescriptionSchema,
+    ) -> TailoredResume:
         """
-        Rewrites resume content to align with the job description by tailoring each experience individually.
+        Rewrites resume content to align with the job description using SWE best practices.
         """
         print("\n" + "="*60)
         print("STARTING RESUME TAILORING")
         print("="*60)
 
+        # --- Tailor experiences (filter irrelevant ones) ---
         tailored_work_history = []
         for experience in resume.work_history:
-            tailored_experience = self._tailor_experience(experience, analysis)
-            tailored_work_history.append(tailored_experience)
+            result = self._tailor_experience(experience, analysis, job_description)
+            if result is not None:
+                tailored_work_history.append(result)
 
-        # Update skills based on gaps
-        updated_skills = resume.skills.copy()
+        # Safety check: if ALL experiences were filtered, keep the 2 most recent
+        if not tailored_work_history and resume.work_history:
+            for experience in resume.work_history[:2]:
+                result = self._tailor_experience(experience, analysis, job_description, force_keep=True)
+                if result is not None:
+                    tailored_work_history.append(result)
+
+        # --- Update skills: deep-copy categorized dict, add gap keywords ---
+        updated_skills = copy.deepcopy(resume.skills)
         for gap in analysis.gaps:
-            if gap.suggested_section == "skills" and gap.missing_keyword not in updated_skills:
-                updated_skills.append(gap.missing_keyword)
+            if gap.suggested_section == "skills":
+                keyword = gap.missing_keyword
+                # Simple heuristic: classify the gap keyword into a category
+                placed = False
+                keyword_lower = keyword.lower()
+                for cat_name, cat_skills in updated_skills.items():
+                    if keyword not in cat_skills:
+                        # Check if keyword fits this category by name heuristic
+                        cat_lower = cat_name.lower()
+                        if any(hint in cat_lower for hint in ["tool", "platform", "cloud", "devops", "infra"]):
+                            if any(hint in keyword_lower for hint in ["aws", "gcp", "azure", "docker", "kubernetes", "terraform", "jenkins", "ci/cd", "git"]):
+                                cat_skills.append(keyword)
+                                placed = True
+                                break
+                        if any(hint in cat_lower for hint in ["language"]):
+                            if any(hint in keyword_lower for hint in ["python", "java", "go", "rust", "c++", "typescript", "javascript", "ruby", "sql", "kotlin", "swift"]):
+                                cat_skills.append(keyword)
+                                placed = True
+                                break
+                        if any(hint in cat_lower for hint in ["framework", "librar"]):
+                            if any(hint in keyword_lower for hint in ["react", "angular", "vue", "django", "flask", "spring", "express", "next", "node"]):
+                                cat_skills.append(keyword)
+                                placed = True
+                                break
+                if not placed:
+                    # Default: add to "Tools" if it exists, otherwise first category
+                    target = updated_skills.get("Tools", None)
+                    if target is not None:
+                        if keyword not in target:
+                            target.append(keyword)
+                    else:
+                        first_cat = next(iter(updated_skills), None)
+                        if first_cat and keyword not in updated_skills[first_cat]:
+                            updated_skills[first_cat].append(keyword)
+
+        # --- Filter education to degrees only ---
+        tailored_education = [
+            edu for edu in resume.education
+            if edu.entry_type == "degree"
+        ]
+        # Fallback: if nothing passes filter, keep all
+        if not tailored_education:
+            tailored_education = list(resume.education)
+
+        # --- Tailor projects ---
+        tailored_projects = []
+        for project in resume.projects:
+            result = self._tailor_project(project, job_description)
+            if result is not None:
+                tailored_projects.append(result)
 
         return TailoredResume(
             tailored_work_history=tailored_work_history,
-            updated_skills=updated_skills
+            updated_skills=updated_skills,
+            tailored_projects=tailored_projects,
+            tailored_education=tailored_education,
         )
 
-    def _tailor_experience(self, experience: Experience, analysis: AnalysisResult) -> TailoredExperience:
+    def _tailor_experience(
+        self,
+        experience: Experience,
+        analysis: AnalysisResult,
+        job_description: JobDescriptionSchema,
+        force_keep: bool = False,
+    ) -> Optional[TailoredExperience]:
         """
-        Tailors a single work experience using the LLM.
+        Tailors a single work experience using the LLM with XYZ/STAR format.
+        Returns None if the experience is completely irrelevant.
         """
-        cache_key_text = f"{experience.model_dump_json()}|{analysis.model_dump_json()}|tailored_exp"
+        cache_key_text = f"{experience.model_dump_json()}|{job_description.model_dump_json()}|tailored_exp_v2"
         cache_path = self._get_cache_path("tailored_experience", cache_key_text)
         cached_data = self._load_from_cache(cache_path)
 
         if cached_data:
             print(f"Loading tailored experience for {experience.company} from cache: {cache_path}")
-            return TailoredExperience(**cached_data)
+            if not cached_data.get("relevant", True) and not force_keep:
+                return None
+            if cached_data.get("tailored_bullet_points"):
+                return TailoredExperience(
+                    company=experience.company,
+                    role=experience.role,
+                    duration=experience.duration,
+                    tailored_bullet_points=cached_data["tailored_bullet_points"],
+                )
+            return None
 
         print(f"Tailoring experience for {experience.company} with LLM...")
 
-        prompt = f"""
-        You are an expert career coach. Rewrite the bullet points for a single work experience to align with the provided analysis.
+        job_keywords = ", ".join(job_description.required_skills[:15])
+        job_responsibilities = "\n".join([f"- {r}" for r in job_description.responsibilities[:10]])
 
-        **Original Bullet Points for {experience.company}:**
+        prompt = f"""
+        You are an elite SWE resume coach. Rewrite the bullet points for a single work experience
+        following strict Software Engineering resume best practices.
+
+        **Role:** {experience.role} at {experience.company} ({experience.duration})
+
+        **Original Bullet Points:**
         {self._format_bullet_points(experience.description)}
 
-        **Analysis to Guide You:**
-        - **Semantic Matches (Resume Item -> Job Requirement):**
-        {self._format_semantic_matches(analysis.matches)}
+        **Target Job Keywords:** {job_keywords}
+        **Target Job Responsibilities:**
+        {job_responsibilities}
 
+        **Analysis Guidance:**
+        - **Semantic Matches:**
+        {self._format_semantic_matches(analysis.matches)}
         - **Keyword Gaps to Fill:**
         {self._format_keyword_gaps(analysis.gaps)}
 
         CRITICAL RULES:
-        1.  Rewrite the bullet points to incorporate the language from the 'job_requirement' and 'missing_keyword' fields.
-        2.  Preserve the original meaning and metrics of the bullet points.
-        3.  Do NOT invent new experiences.
+        1. RELEVANCE CHECK: If this experience is completely irrelevant to the target job,
+           return {{"relevant": false, "tailored_bullet_points": []}}.
+           If partially relevant, keep 1-2 bullets only.
+        2. XYZ FORMAT: Every bullet MUST follow "Accomplished [X] as measured by [Y], by doing [Z]".
+           Example: "Reduced API latency by 40% (from 200ms to 120ms) by implementing Redis caching layer for frequently accessed endpoints"
+        3. MANDATORY METRICS: Every bullet must include %, $, time saved, users impacted, or similar.
+           If the original lacks metrics, insert a realistic placeholder in brackets like [reduced by ~30%] or [serving ~5K users].
+        4. STRONG ACTION VERBS ONLY: Use verbs like Engineered, Architected, Optimized, Spearheaded,
+           Implemented, Automated, Deployed, Designed, Scaled, Migrated. Never use "Helped", "Assisted", "Worked on".
+        5. NO FLUFF: No soft skills, no "team player", no "detail-oriented", no "excellent communicator".
+        6. KEYWORD INTEGRATION: Naturally weave in job description keywords where truthful.
+        7. Do NOT invent entirely new experiences. You may reframe and quantify existing ones.
 
         **Output Format:**
-        Return a single, valid JSON object with a single key "tailored_bullet_points" containing a list of the rewritten bullet points.
-
-        EXAMPLE OUTPUT:
+        Return a JSON object:
         {{
+            "relevant": true,
             "tailored_bullet_points": [
-                "Engineered and implemented REST APIs for payment systems, resulting in a 15% increase in transaction speed.",
-                "Led a team of 3 developers in a project that designed and implemented a bi-directional integration architecture, improving data consistency by 30%."
+                "Engineered a real-time data pipeline processing 10K+ events/sec by leveraging Apache Kafka and Python, reducing data latency by 60%",
+                "Architected microservices migration from monolith, improving deployment frequency by 300% [~4x per week] using Docker and Kubernetes"
             ]
         }}
 
@@ -491,14 +631,113 @@ class ResumeBrain:
 
         data = self._stream_and_structure(prompt, f"Tailoring {experience.company}")
 
+        # Save to cache
+        self._save_to_cache(cache_path, data)
+
+        is_relevant = data.get("relevant", True)
+        if not is_relevant and not force_keep:
+            print(f"  → Filtered out {experience.company} (irrelevant)")
+            return None
+
         raw_bullets = data.get("tailored_bullet_points", [])
         bullets = [str(b) for b in raw_bullets if str(b).strip()]
+
+        if not bullets:
+            return None
 
         return TailoredExperience(
             company=experience.company,
             role=experience.role,
             duration=experience.duration,
             tailored_bullet_points=bullets,
+        )
+
+    def _tailor_project(
+        self,
+        project: Project,
+        job_description: JobDescriptionSchema,
+    ) -> Optional[TailoredProject]:
+        """
+        Tailors a single project using the LLM with XYZ/STAR format.
+        Returns None if the project is completely irrelevant.
+        """
+        cache_key_text = f"{project.model_dump_json()}|{job_description.model_dump_json()}|tailored_proj"
+        cache_path = self._get_cache_path("tailored_project", cache_key_text)
+        cached_data = self._load_from_cache(cache_path)
+
+        if cached_data:
+            print(f"Loading tailored project for {project.name} from cache: {cache_path}")
+            if not cached_data.get("relevant", True):
+                return None
+            if cached_data.get("tailored_bullet_points"):
+                return TailoredProject(
+                    name=project.name,
+                    tailored_bullet_points=cached_data["tailored_bullet_points"],
+                    tech_stack=cached_data.get("tech_stack", project.tech_stack),
+                    url=project.url,
+                )
+            return None
+
+        print(f"Tailoring project {project.name} with LLM...")
+
+        job_keywords = ", ".join(job_description.required_skills[:15])
+
+        prompt = f"""
+        You are an elite SWE resume coach. Rewrite the bullet points for a personal/side project
+        following strict Software Engineering resume best practices.
+
+        **Project:** {project.name}
+        **Tech Stack:** {', '.join(project.tech_stack)}
+        **URL:** {project.url or 'N/A'}
+
+        **Original Bullet Points:**
+        {self._format_bullet_points(project.description)}
+
+        **Target Job Keywords:** {job_keywords}
+
+        CRITICAL RULES:
+        1. RELEVANCE CHECK: If this project is completely irrelevant to the target job,
+           return {{"relevant": false, "tailored_bullet_points": [], "tech_stack": []}}.
+        2. XYZ FORMAT: Every bullet MUST follow "Accomplished [X] as measured by [Y], by doing [Z]".
+        3. Highlight the tech stack used — especially technologies that overlap with the target job.
+        4. STRONG ACTION VERBS ONLY: Engineered, Architected, Designed, Implemented, Built, Deployed, etc.
+        5. Include metrics where possible (users, performance, data volume). Use bracketed placeholders if needed.
+        6. Do NOT invent entirely new project details.
+
+        **Output Format:**
+        Return a JSON object:
+        {{
+            "relevant": true,
+            "tailored_bullet_points": [
+                "Engineered a full-stack e-commerce platform handling [~500 daily transactions] using React, Node.js, and PostgreSQL",
+                "Implemented real-time inventory tracking with WebSockets, reducing stock discrepancies by [~25%]"
+            ],
+            "tech_stack": ["React", "Node.js", "PostgreSQL", "WebSockets"]
+        }}
+
+        Return the JSON object now:
+        """
+
+        data = self._stream_and_structure(prompt, f"Tailoring Project {project.name}")
+
+        # Save to cache
+        self._save_to_cache(cache_path, data)
+
+        if not data.get("relevant", True):
+            print(f"  → Filtered out project {project.name} (irrelevant)")
+            return None
+
+        raw_bullets = data.get("tailored_bullet_points", [])
+        bullets = [str(b) for b in raw_bullets if str(b).strip()]
+
+        if not bullets:
+            return None
+
+        return TailoredProject(
+            name=project.name,
+            tailored_bullet_points=bullets,
+            tech_stack=data.get("tech_stack", project.tech_stack),
+            url=project.url,
         )
 
     # ==================== Phase 4: Cover Letter Generation ====================
@@ -520,6 +759,9 @@ class ResumeBrain:
 
         print("Generating cover letter with LLM...")
 
+        # Flatten skills for prompt
+        flat_skills = self._flatten_skills(resume.skills)
+
         example_json = '''{
   "greeting": "Dear Hiring Manager,",
   "opening_paragraph": "I am writing to express my interest in the Software Engineer position...",
@@ -535,7 +777,7 @@ class ResumeBrain:
         You are an expert career coach. Write a concise, professional cover letter for a candidate applying to the following job.
 
         CANDIDATE NAME: {resume.name}
-        CANDIDATE SKILLS: {resume.skills}
+        CANDIDATE SKILLS: {flat_skills}
         CANDIDATE WORK HISTORY:
         {self._format_work_history(resume.work_history)}
 
