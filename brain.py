@@ -1,4 +1,3 @@
-import copy
 import json
 import hashlib
 from pathlib import Path
@@ -489,43 +488,9 @@ class ResumeBrain:
                 if result is not None:
                     tailored_work_history.append(result)
 
-        # --- Update skills: deep-copy categorized dict, add gap keywords ---
-        updated_skills = copy.deepcopy(resume.skills)
-        for gap in analysis.gaps:
-            if gap.suggested_section == "skills":
-                keyword = gap.missing_keyword
-                # Simple heuristic: classify the gap keyword into a category
-                placed = False
-                keyword_lower = keyword.lower()
-                for cat_name, cat_skills in updated_skills.items():
-                    if keyword not in cat_skills:
-                        # Check if keyword fits this category by name heuristic
-                        cat_lower = cat_name.lower()
-                        if any(hint in cat_lower for hint in ["tool", "platform", "cloud", "devops", "infra"]):
-                            if any(hint in keyword_lower for hint in ["aws", "gcp", "azure", "docker", "kubernetes", "terraform", "jenkins", "ci/cd", "git"]):
-                                cat_skills.append(keyword)
-                                placed = True
-                                break
-                        if any(hint in cat_lower for hint in ["language"]):
-                            if any(hint in keyword_lower for hint in ["python", "java", "go", "rust", "c++", "typescript", "javascript", "ruby", "sql", "kotlin", "swift"]):
-                                cat_skills.append(keyword)
-                                placed = True
-                                break
-                        if any(hint in cat_lower for hint in ["framework", "librar"]):
-                            if any(hint in keyword_lower for hint in ["react", "angular", "vue", "django", "flask", "spring", "express", "next", "node"]):
-                                cat_skills.append(keyword)
-                                placed = True
-                                break
-                if not placed:
-                    # Default: add to "Tools" if it exists, otherwise first category
-                    target = updated_skills.get("Tools", None)
-                    if target is not None:
-                        if keyword not in target:
-                            target.append(keyword)
-                    else:
-                        first_cat = next(iter(updated_skills), None)
-                        if first_cat and keyword not in updated_skills[first_cat]:
-                            updated_skills[first_cat].append(keyword)
+        # --- Tailor skills via LLM: filter to job-relevant + integrate gaps ---
+        gap_keywords = [g.missing_keyword for g in analysis.gaps if g.suggested_section == "skills"]
+        updated_skills = self._tailor_skills(resume.skills, job_description, gap_keywords)
 
         # --- Filter education to degrees only ---
         tailored_education = [
@@ -739,6 +704,71 @@ class ResumeBrain:
             tech_stack=data.get("tech_stack", project.tech_stack),
             url=project.url,
         )
+
+    def _tailor_skills(
+        self,
+        skills: dict,
+        job_description: JobDescriptionSchema,
+        gap_keywords: List[str],
+    ) -> dict:
+        """
+        Uses LLM to curate skills to only those relevant to the target job,
+        integrating gap keywords into appropriate categories.
+        """
+        cache_key_text = f"{json.dumps(skills)}|{job_description.model_dump_json()}|{gap_keywords}|tailored_skills"
+        cache_path = self._get_cache_path("tailored_skills", cache_key_text)
+        cached_data = self._load_from_cache(cache_path)
+
+        if cached_data is not None:
+            print(f"Loading tailored skills from cache: {cache_path}")
+            if isinstance(cached_data, dict) and cached_data:
+                return cached_data
+            return skills
+
+        print("Tailoring skills with LLM...")
+
+        prompt = f"""
+        You are an elite SWE resume coach. Curate the candidate's skills section to be laser-focused
+        on the target job. Remove anything irrelevant and integrate missing keywords.
+
+        **Candidate's Current Skills (by category):**
+        {json.dumps(skills, indent=2)}
+
+        **Gap Keywords to Integrate (add these to the appropriate category):**
+        {gap_keywords}
+
+        **Target Job Required Skills:** {job_description.required_skills}
+        **Target Job Responsibilities:** {', '.join(job_description.responsibilities[:8])}
+
+        CRITICAL RULES:
+        1. ONLY keep skills that are relevant to the target job or closely related.
+           Remove skills that have no connection to the job requirements.
+        2. Integrate the gap keywords into the most appropriate existing category.
+        3. Keep categories clean: "Languages", "Frameworks", "Tools", "Cloud/DevOps", "Databases", etc.
+           You may rename or merge categories if it makes sense. Remove empty categories.
+        4. Order skills within each category by relevance to the job (most relevant first).
+        5. Do NOT invent skills the candidate doesn't have (except for the provided gap keywords).
+        6. Aim for a focused, specialized look — not a kitchen-sink dump.
+
+        Return a JSON object where keys are category names and values are arrays of skills:
+        {{
+            "Languages": ["Python", "TypeScript", "SQL"],
+            "Frameworks": ["React", "Django"],
+            "Tools & Cloud": ["Docker", "AWS", "Terraform", "Git"]
+        }}
+
+        Return the JSON object now:
+        """
+
+        data = self._stream_and_structure(prompt, "Tailoring Skills")
+
+        # Validate we got a non-empty dict back
+        if isinstance(data, dict) and data:
+            self._save_to_cache(cache_path, data)
+            return data
+
+        # Fallback: return original skills unchanged
+        return skills
 
     # ==================== Phase 4: Cover Letter Generation ====================
 
