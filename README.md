@@ -51,10 +51,6 @@ Before you begin, ensure you have the following installed on your system:
 
 - **Python 3.10+**
 - **OpenAI API key:** Get one at [platform.openai.com](https://platform.openai.com/api-keys)
-- **Tesseract OCR:**
-    - **macOS:** `brew install tesseract`
-    - **Windows:** Follow the instructions on the [Tesseract Wiki](https://github.com/UB-Mannheim/tesseract/wiki).
-    - **Linux (Debian/Ubuntu):** `sudo apt update && sudo apt install tesseract-ocr`
 
 ### 2. Setup & Installation
 
