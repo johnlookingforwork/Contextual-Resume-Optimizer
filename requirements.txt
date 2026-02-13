@@ -4,3 +4,5 @@ PyMuPDF
 openai
 tqdm
 reportlab
+plotly
+pyvis

@@ -2,6 +2,7 @@ import streamlit as st
 from extractor import extract_resume_text_from_bytes
 from brain import ResumeBrain
 from generator import generate_resume_pdf_bytes, generate_cover_letter_pdf_bytes
+from xai_dashboard import render_xai_dashboard
 
 st.set_page_config(page_title="Resume Optimizer", layout="wide")
 st.title("Contextual Resume Optimizer")
@@ -74,8 +75,8 @@ if "analysis" in st.session_state:
     cover_letter = st.session_state["cover_letter"]
     structured_resume = st.session_state["structured_resume"]
 
-    tab_analysis, tab_resume, tab_cover, tab_downloads = st.tabs(
-        ["Analysis", "Tailored Resume", "Cover Letter", "Downloads"]
+    tab_analysis, tab_xai, tab_resume, tab_cover, tab_downloads = st.tabs(
+        ["Analysis", "XAI Dashboard", "Tailored Resume", "Cover Letter", "Downloads"]
     )
 
     # ── Tab 1: Analysis ──────────────────────────────────────────
@@ -110,7 +111,11 @@ if "analysis" in st.session_state:
         for rec in analysis.recommendations:
             st.info(rec)
 
-    # ── Tab 2: Tailored Resume ───────────────────────────────────
+    # ── Tab 2: XAI Dashboard ──────────────────────────────────────
+    with tab_xai:
+        render_xai_dashboard(analysis)
+
+    # ── Tab 3: Tailored Resume ───────────────────────────────────
     with tab_resume:
         st.subheader("Updated Skills")
         for category, skill_list in tailored.updated_skills.items():
@@ -144,7 +149,7 @@ if "analysis" in st.session_state:
                     parts.append(edu.graduation_date)
                 st.write(" | ".join(parts))
 
-    # ── Tab 3: Cover Letter ──────────────────────────────────────
+    # ── Tab 4: Cover Letter ──────────────────────────────────────
     with tab_cover:
         st.markdown(f"**{cover_letter.greeting}**")
         st.write(cover_letter.opening_paragraph)
@@ -154,7 +159,7 @@ if "analysis" in st.session_state:
         st.markdown(f"*{cover_letter.sign_off}*")
         st.markdown(f"*{structured_resume.name}*")
 
-    # ── Tab 4: Downloads ─────────────────────────────────────────
+    # ── Tab 5: Downloads ─────────────────────────────────────────
     with tab_downloads:
         base_dict = structured_resume.model_dump()
         tailored_dict = tailored.model_dump()
