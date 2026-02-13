@@ -571,23 +571,24 @@ class ResumeBrain:
         1. RELEVANCE CHECK: If this experience is completely irrelevant to the target job,
            return {{"relevant": false, "tailored_bullet_points": []}}.
            If partially relevant, keep 1-2 bullets only.
-        2. XYZ FORMAT: Every bullet MUST follow "Accomplished [X] as measured by [Y], by doing [Z]".
-           Example: "Reduced API latency by 40% (from 200ms to 120ms) by implementing Redis caching layer for frequently accessed endpoints"
-        3. MANDATORY METRICS: Every bullet must include %, $, time saved, users impacted, or similar.
-           If the original lacks metrics, insert a realistic placeholder number.
+        2. XYZ FORMAT: Bullets should follow "Accomplished [X] by doing [Z]" with measurable impact when available.
+           Example: "Reduced API latency from 200ms to 120ms by implementing Redis caching layer for frequently accessed endpoints"
+        3. METRICS: Only include metrics that are explicitly stated or clearly implied in the original bullets.
+           Do NOT fabricate percentages, dollar amounts, or numbers. If the original has no metrics,
+           describe the impact qualitatively (e.g., "improved performance", "streamlined workflow") instead of inventing numbers.
         4. STRONG ACTION VERBS ONLY: Use verbs like Engineered, Architected, Optimized, Spearheaded,
            Implemented, Automated, Deployed, Designed, Scaled, Migrated. Never use "Helped", "Assisted", "Worked on".
         5. NO FLUFF: No soft skills, no "team player", no "detail-oriented", no "excellent communicator".
         6. KEYWORD INTEGRATION: Naturally weave in job description keywords where truthful.
-        7. Do NOT invent entirely new experiences. You may reframe and quantify existing ones.
+        7. Do NOT invent entirely new experiences. You may reframe existing ones but must stay truthful to the original content.
 
         **Output Format:**
         Return a JSON object:
         {{
             "relevant": true,
             "tailored_bullet_points": [
-                "Engineered a real-time data pipeline processing 10K+ events/sec by leveraging Apache Kafka and Python, reducing data latency by 60%",
-                "Architected microservices migration from monolith, improving deployment frequency by 300% [~4x per week] using Docker and Kubernetes"
+                "Engineered a real-time data pipeline processing 10K+ events/sec by leveraging Apache Kafka and Python, significantly reducing data latency",
+                "Architected microservices migration from monolith using Docker and Kubernetes, enabling more frequent deployments"
             ]
         }}
 
@@ -663,19 +664,20 @@ class ResumeBrain:
         CRITICAL RULES:
         1. RELEVANCE CHECK: If this project is completely irrelevant to the target job,
            return {{"relevant": false, "tailored_bullet_points": [], "tech_stack": []}}.
-        2. XYZ FORMAT: Every bullet MUST follow "Accomplished [X] as measured by [Y], by doing [Z]".
+        2. XYZ FORMAT: Bullets should follow "Accomplished [X] by doing [Z]" with measurable impact when available.
         3. Highlight the tech stack used — especially technologies that overlap with the target job.
         4. STRONG ACTION VERBS ONLY: Engineered, Architected, Designed, Implemented, Built, Deployed, etc.
-        5. Include metrics where possible (users, performance, data volume). Use placeholder numbers if needed.
-        6. Do NOT invent entirely new project details.
+        5. METRICS: Only include metrics from the original description. Do NOT fabricate percentages or numbers.
+           If no metrics exist, describe impact qualitatively instead.
+        6. Do NOT invent entirely new project details. Stay truthful to the original content.
 
         **Output Format:**
         Return a JSON object:
         {{
             "relevant": true,
             "tailored_bullet_points": [
-                "Engineered a full-stack e-commerce platform handling [~500 daily transactions] using React, Node.js, and PostgreSQL",
-                "Implemented real-time inventory tracking with WebSockets, reducing stock discrepancies by ~25%"
+                "Engineered a full-stack e-commerce platform with payment integration using React, Node.js, and PostgreSQL",
+                "Implemented real-time inventory tracking with WebSockets, improving stock accuracy"
             ],
             "tech_stack": ["React", "Node.js", "PostgreSQL", "WebSockets"]
         }}
@@ -714,7 +716,6 @@ class ResumeBrain:
         """
         Uses LLM to curate skills to only those relevant to the target job,
         integrating gap keywords into appropriate categories.
-        Do not add skills that the applicant does not have. 
         """
         cache_key_text = f"{json.dumps(skills)}|{job_description.model_dump_json()}|{gap_keywords}|tailored_skills"
         cache_path = self._get_cache_path("tailored_skills", cache_key_text)
