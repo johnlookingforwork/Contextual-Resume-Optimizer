@@ -675,7 +675,7 @@ class ResumeBrain:
             "relevant": true,
             "tailored_bullet_points": [
                 "Engineered a full-stack e-commerce platform handling [~500 daily transactions] using React, Node.js, and PostgreSQL",
-                "Implemented real-time inventory tracking with WebSockets, reducing stock discrepancies by [~25%]"
+                "Implemented real-time inventory tracking with WebSockets, reducing stock discrepancies by ~25%"
             ],
             "tech_stack": ["React", "Node.js", "PostgreSQL", "WebSockets"]
         }}
@@ -714,6 +714,7 @@ class ResumeBrain:
         """
         Uses LLM to curate skills to only those relevant to the target job,
         integrating gap keywords into appropriate categories.
+        Do not add skills that the applicant does not have. 
         """
         cache_key_text = f"{json.dumps(skills)}|{job_description.model_dump_json()}|{gap_keywords}|tailored_skills"
         cache_path = self._get_cache_path("tailored_skills", cache_key_text)
