@@ -574,7 +574,7 @@ class ResumeBrain:
         2. XYZ FORMAT: Every bullet MUST follow "Accomplished [X] as measured by [Y], by doing [Z]".
            Example: "Reduced API latency by 40% (from 200ms to 120ms) by implementing Redis caching layer for frequently accessed endpoints"
         3. MANDATORY METRICS: Every bullet must include %, $, time saved, users impacted, or similar.
-           If the original lacks metrics, insert a realistic placeholder in brackets like [reduced by ~30%] or [serving ~5K users].
+           If the original lacks metrics, insert a realistic placeholder number.
         4. STRONG ACTION VERBS ONLY: Use verbs like Engineered, Architected, Optimized, Spearheaded,
            Implemented, Automated, Deployed, Designed, Scaled, Migrated. Never use "Helped", "Assisted", "Worked on".
         5. NO FLUFF: No soft skills, no "team player", no "detail-oriented", no "excellent communicator".
@@ -666,7 +666,7 @@ class ResumeBrain:
         2. XYZ FORMAT: Every bullet MUST follow "Accomplished [X] as measured by [Y], by doing [Z]".
         3. Highlight the tech stack used — especially technologies that overlap with the target job.
         4. STRONG ACTION VERBS ONLY: Engineered, Architected, Designed, Implemented, Built, Deployed, etc.
-        5. Include metrics where possible (users, performance, data volume). Use bracketed placeholders if needed.
+        5. Include metrics where possible (users, performance, data volume). Use placeholder numbers if needed.
         6. Do NOT invent entirely new project details.
 
         **Output Format:**
