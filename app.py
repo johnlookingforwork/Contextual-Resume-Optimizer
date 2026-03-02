@@ -168,7 +168,7 @@ if "analysis" in st.session_state:
         resume_pdf = generate_resume_pdf_bytes(base_dict, tailored_dict)
         cover_pdf = generate_cover_letter_pdf_bytes(cover_dict, structured_resume.name)
 
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.download_button(
                 label="Download Tailored Resume (PDF)",
@@ -183,5 +183,14 @@ if "analysis" in st.session_state:
                 data=cover_pdf,
                 file_name="cover_letter.pdf",
                 mime="application/pdf",
+                use_container_width=True,
+            )
+        with col3:
+            import json as _json
+            st.download_button(
+                label="Download Tailored Resume (JSON)",
+                data=_json.dumps(tailored_dict, indent=2),
+                file_name="tailored_resume.json",
+                mime="application/json",
                 use_container_width=True,
             )
