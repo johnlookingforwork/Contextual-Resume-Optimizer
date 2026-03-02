@@ -58,7 +58,7 @@ Follow these steps to set up your project environment:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/your-username/Contextual-Resume-Optimizer.git
+    git clone https://github.com/johnlookingforwork/Contextual-Resume-Optimizer.git
     cd Contextual-Resume-Optimizer
     ```
 
