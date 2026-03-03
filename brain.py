@@ -114,6 +114,16 @@ class ResumeBrain:
       ],
       "tech_stack": ["React", "Node.js", "PostgreSQL", "Stripe"],
       "url": "github.com/janesmith/ecommerce"
+    },
+    {
+      "name": "AWESOME-SIDE-PROJECT LLC",
+      "description": [
+        "Led a team of 3 in building a full-stack ordering system using the MERN stack",
+        "Designed scalable MongoDB schemas and RESTful APIs to handle hundreds of concurrent users",
+        "Deployed production via AWS EC2, managed CI/CD using GitHub Actions"
+      ],
+      "tech_stack": ["MongoDB", "Express", "React", "Node.js", "AWS EC2", "GitHub Actions"],
+      "url": null
     }
   ],
   "education": [
@@ -144,7 +154,15 @@ class ResumeBrain:
         8. "skills" MUST be a dictionary grouped by category (e.g. "Languages", "Frameworks", "Tools", "Cloud", "Databases").
            Filter out fluff skills like Microsoft Office, Communication, Teamwork, Leadership, Detail-oriented, etc.
            Only include technical skills relevant to software engineering.
-        9. If the resume has a Projects section, extract each project with name, description (bullet points), tech_stack, and url (if present).
+        9. If the resume has a "PROJECT EXPERIENCE", "Projects", or similarly named section, extract EVERY entry
+           into the "projects" array. These entries often look like work experience (they may have a company/product
+           name, a role title, dates, and bullet points) — treat them as projects regardless.
+           - Use the project/product name (e.g. "CONTEXTUAL-RESUME-OPTIMIZER", "TEALATTE BAR LLC") as "name".
+           - Use all bullet points as the "description" array.
+           - Infer "tech_stack" from any technologies mentioned in the bullet points (languages, frameworks, tools,
+             databases, platforms). If none are explicitly stated, set "tech_stack" to [].
+           - Set "url" to any website or GitHub URL mentioned for the project; otherwise null.
+           - Do NOT place project entries into "work_history". Keep work_history strictly for paid employment.
            If no Projects section exists, set "projects" to an empty array [].
         10. Each education entry must include "entry_type" classified as "degree", "certification", or "bootcamp".
         11. Extract links: GitHub, LinkedIn, portfolio URLs, or personal website URLs into the "links" array.
