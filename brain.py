@@ -61,6 +61,12 @@ class ResumeBrain:
             response_format={"type": "json_object"},
         )
         content = response.choices[0].message.content
+        if not content:
+            finish_reason = response.choices[0].finish_reason
+            raise ValueError(
+                f"[{description}] OpenAI returned empty content (finish_reason={finish_reason!r}). "
+                "This may be due to a content filter or token limit."
+            )
         return json.loads(content)
 
     def _flatten_skills(self, skills: dict) -> list:
