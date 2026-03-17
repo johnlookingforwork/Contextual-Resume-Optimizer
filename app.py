@@ -161,6 +161,9 @@ if "analysis" in st.session_state:
 
     # ── Tab 5: Downloads ─────────────────────────────────────────
     with tab_downloads:
+        import re as _re
+        import json as _json
+
         base_dict = structured_resume.model_dump()
         tailored_dict = tailored.model_dump()
         cover_dict = cover_letter.model_dump()
@@ -168,12 +171,19 @@ if "analysis" in st.session_state:
         resume_pdf = generate_resume_pdf_bytes(base_dict, tailored_dict)
         cover_pdf = generate_cover_letter_pdf_bytes(cover_dict, structured_resume.name)
 
+        def _slug(text: str) -> str:
+            return _re.sub(r"[^a-zA-Z0-9]+", "-", text).strip("-")
+
+        name_slug = _slug(structured_resume.name)
+        role_slug = _slug(structured_job.title)
+        base_filename = f"{name_slug}-{role_slug}"
+
         col1, col2, col3 = st.columns(3)
         with col1:
             st.download_button(
                 label="Download Tailored Resume (PDF)",
                 data=resume_pdf,
-                file_name="tailored_resume.pdf",
+                file_name=f"{base_filename}-Resume.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
@@ -181,16 +191,15 @@ if "analysis" in st.session_state:
             st.download_button(
                 label="Download Cover Letter (PDF)",
                 data=cover_pdf,
-                file_name="cover_letter.pdf",
+                file_name=f"{base_filename}-Cover-Letter.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )
         with col3:
-            import json as _json
             st.download_button(
                 label="Download Tailored Resume (JSON)",
                 data=_json.dumps(tailored_dict, indent=2),
-                file_name="tailored_resume.json",
+                file_name=f"{base_filename}-Resume.json",
                 mime="application/json",
                 use_container_width=True,
             )
