@@ -67,6 +67,7 @@ if run_button:
         st.session_state["tailored"] = tailored
         st.session_state["cover_letter"] = cover_letter
         st.session_state["structured_resume"] = structured_resume
+        st.session_state["structured_job"] = structured_job
 
 # ── Results tabs ─────────────────────────────────────────────────
 if "analysis" in st.session_state:
@@ -74,6 +75,7 @@ if "analysis" in st.session_state:
     tailored = st.session_state["tailored"]
     cover_letter = st.session_state["cover_letter"]
     structured_resume = st.session_state["structured_resume"]
+    structured_job = st.session_state["structured_job"]
 
     tab_analysis, tab_xai, tab_resume, tab_cover, tab_downloads = st.tabs(
         ["Analysis", "XAI Dashboard", "Tailored Resume", "Cover Letter", "Downloads"]
