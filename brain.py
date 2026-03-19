@@ -512,9 +512,8 @@ class ResumeBrain:
                 if result is not None:
                     tailored_work_history.append(result)
 
-        # --- Tailor skills via LLM: filter to job-relevant + integrate gaps ---
-        gap_keywords = [g.missing_keyword for g in analysis.gaps if g.suggested_section == "skills"]
-        updated_skills = self._tailor_skills(resume.skills, job_description, gap_keywords)
+        # --- Tailor skills via LLM: filter to job-relevant only (no fabrication) ---
+        updated_skills = self._tailor_skills(resume.skills, job_description)
 
         # --- Filter education to degrees only ---
         tailored_education = [
@@ -735,13 +734,12 @@ class ResumeBrain:
         self,
         skills: dict,
         job_description: JobDescriptionSchema,
-        gap_keywords: List[str],
     ) -> dict:
         """
-        Uses LLM to curate skills to only those relevant to the target job,
-        integrating gap keywords into appropriate categories.
+        Uses LLM to curate skills to only those relevant to the target job.
+        Never adds skills the candidate doesn't have.
         """
-        cache_key_text = f"{json.dumps(skills)}|{job_description.model_dump_json()}|{gap_keywords}|tailored_skills"
+        cache_key_text = f"{json.dumps(skills)}|{job_description.model_dump_json()}|tailored_skills_v2"
         cache_path = self._get_cache_path("tailored_skills", cache_key_text)
         cached_data = self._load_from_cache(cache_path)
 
@@ -755,13 +753,10 @@ class ResumeBrain:
 
         prompt = f"""
         You are an elite SWE resume coach. Curate the candidate's skills section to be laser-focused
-        on the target job. Remove anything irrelevant and integrate missing keywords.
+        on the target job. Remove anything irrelevant.
 
         **Candidate's Current Skills (by category):**
         {json.dumps(skills, indent=2)}
-
-        **Gap Keywords to Integrate (add these to the appropriate category):**
-        {gap_keywords}
 
         **Target Job Required Skills:** {job_description.required_skills}
         **Target Job Responsibilities:** {', '.join(job_description.responsibilities[:8])}
@@ -769,12 +764,11 @@ class ResumeBrain:
         CRITICAL RULES:
         1. ONLY keep skills that are relevant to the target job or closely related.
            Remove skills that have no connection to the job requirements.
-        2. Integrate the gap keywords into the most appropriate existing category.
+        2. NEVER add skills the candidate does not already have listed above. Only filter and reorganize.
         3. Keep categories clean: "Languages", "Frameworks", "Tools", "Cloud/DevOps", "Databases", etc.
            You may rename or merge categories if it makes sense. Remove empty categories.
         4. Order skills within each category by relevance to the job (most relevant first).
-        5. Do NOT invent skills the candidate doesn't have (except for the provided gap keywords).
-        6. Aim for a focused, specialized look — not a kitchen-sink dump.
+        5. Aim for a focused, specialized look — not a kitchen-sink dump.
 
         Return a JSON object where keys are category names and values are arrays of skills:
         {{
