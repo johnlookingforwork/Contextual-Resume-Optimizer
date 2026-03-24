@@ -815,12 +815,15 @@ class ResumeBrain:
             print(f"Warning: Failed to tailor skills: {e}. Using original skills.")
             return skills
 
-        # Validate we got a non-empty dict back
-        if isinstance(data, dict) and data:
-            self._save_to_cache(cache_path, data)
-            return data
+        # Validate we got a non-empty dict with actual skills
+        if isinstance(data, dict):
+            non_empty = {k: v for k, v in data.items() if isinstance(v, list) and v}
+            if non_empty:
+                self._save_to_cache(cache_path, non_empty)
+                return non_empty
 
         # Fallback: return original skills unchanged
+        print("Warning: Tailored skills were empty. Using original skills.")
         return skills
 
     # ==================== Phase 4: Cover Letter Generation ====================
