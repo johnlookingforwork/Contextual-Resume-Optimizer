@@ -629,7 +629,16 @@ class ResumeBrain:
         Return the JSON object now:
         """
 
-        data = self._stream_and_structure(prompt, f"Tailoring {experience.company}")
+        try:
+            data = self._stream_and_structure(prompt, f"Tailoring {experience.company}")
+        except (ValueError, Exception) as e:
+            print(f"Warning: Failed to tailor {experience.company}: {e}. Keeping original bullets.")
+            return TailoredExperience(
+                company=experience.company,
+                role=experience.role,
+                duration=experience.duration,
+                tailored_bullet_points=experience.description,
+            )
 
         # Save to cache
         self._save_to_cache(cache_path, data)
@@ -719,7 +728,16 @@ class ResumeBrain:
         Return the JSON object now:
         """
 
-        data = self._stream_and_structure(prompt, f"Tailoring Project {project.name}")
+        try:
+            data = self._stream_and_structure(prompt, f"Tailoring Project {project.name}")
+        except (ValueError, Exception) as e:
+            print(f"Warning: Failed to tailor project {project.name}: {e}. Keeping original.")
+            return TailoredProject(
+                name=project.name,
+                tailored_bullet_points=project.description,
+                tech_stack=project.tech_stack,
+                url=project.url,
+            )
 
         # Save to cache
         self._save_to_cache(cache_path, data)
@@ -791,7 +809,11 @@ class ResumeBrain:
         Return the JSON object now:
         """
 
-        data = self._stream_and_structure(prompt, "Tailoring Skills")
+        try:
+            data = self._stream_and_structure(prompt, "Tailoring Skills")
+        except (ValueError, Exception) as e:
+            print(f"Warning: Failed to tailor skills: {e}. Using original skills.")
+            return skills
 
         # Validate we got a non-empty dict back
         if isinstance(data, dict) and data:
