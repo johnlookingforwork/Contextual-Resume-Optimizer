@@ -20,57 +20,90 @@ with st.sidebar:
     st.header("Inputs")
     uploaded_file = st.file_uploader("Upload your resume (PDF)", type=["pdf"])
     job_text = st.text_area("Paste the job description", height=300)
-    run_button = st.button("Optimize Resume", type="primary", use_container_width=True)
+    run_button = st.button("Analyze Resume", type="primary", use_container_width=True)
 
-# ── Pipeline execution ───────────────────────────────────────────
+# ── Stage 1: Analyze ─────────────────────────────────────────────
 if run_button:
     if not uploaded_file or not job_text.strip():
         st.warning("Please upload a resume PDF and paste a job description.")
     else:
+        # Clear any previous tailoring results when re-analyzing
+        for key in ["tailored", "cover_letter"]:
+            st.session_state.pop(key, None)
+
         brain = ResumeBrain(api_key=openai_api_key)
         pdf_bytes = uploaded_file.read()
 
-        # Step 1 — Extract
         with st.status("Extracting text from PDF...", expanded=False) as s:
             resume_data = extract_resume_text_from_bytes(pdf_bytes)
             s.update(label="Text extracted", state="complete")
 
-        # Step 2 — Structure resume
         with st.status("Structuring resume...", expanded=False) as s:
             structured_resume = brain.structure_resume(resume_data.raw_text)
             s.update(label="Resume structured", state="complete")
 
-        # Step 3 — Structure job description
         with st.status("Structuring job description...", expanded=False) as s:
             structured_job = brain.structure_job_description(job_text)
             s.update(label="Job description structured", state="complete")
 
-        # Step 4 — Semantic analysis
         with st.status("Running semantic analysis...", expanded=False) as s:
             analysis = brain.analyze_resume(structured_resume, structured_job)
             s.update(label="Analysis complete", state="complete")
 
-        # Step 5 — Tailor resume
+        st.session_state["analysis"] = analysis
+        st.session_state["structured_resume"] = structured_resume
+        st.session_state["structured_job"] = structured_job
+        st.session_state["brain"] = brain
+
+# ── Stage 2: Keyword Gap Selection ──────────────────────────────
+if "analysis" in st.session_state and "tailored" not in st.session_state:
+    analysis = st.session_state["analysis"]
+
+    st.subheader("Keyword Gap Review")
+    st.write("Select the skills you actually have. Only checked items will be added to your tailored resume.")
+
+    gaps = sorted(
+        analysis.gaps,
+        key=lambda g: {"high": 3, "medium": 2, "low": 1}[g.importance],
+        reverse=True,
+    )
+
+    selected_keywords = []
+    if gaps:
+        for gap in gaps:
+            label = f"**[{gap.importance.upper()}]** {gap.missing_keyword}"
+            if gap.context_in_job:
+                label += f" — *{gap.context_in_job}*"
+            checked = st.checkbox(label, key=f"gap_{gap.missing_keyword}")
+            if checked:
+                selected_keywords.append(gap.missing_keyword)
+    else:
+        st.info("No keyword gaps identified.")
+
+    if st.button("Generate Tailored Resume", type="primary"):
+        brain = st.session_state["brain"]
+        structured_resume = st.session_state["structured_resume"]
+        structured_job = st.session_state["structured_job"]
+
         with st.status("Tailoring resume...", expanded=False) as s:
-            tailored = brain.tailor_resume(structured_resume, analysis, structured_job)
+            tailored = brain.tailor_resume(
+                structured_resume, analysis, structured_job,
+                confirmed_gap_keywords=selected_keywords,
+            )
             s.update(label="Resume tailored", state="complete")
 
-        # Step 6 — Cover letter
         with st.status("Generating cover letter...", expanded=False) as s:
             cover_letter = brain.generate_cover_letter(
                 structured_resume, structured_job, analysis
             )
             s.update(label="Cover letter generated", state="complete")
 
-        # Persist results in session state so tab clicks don't re-run pipeline
-        st.session_state["analysis"] = analysis
         st.session_state["tailored"] = tailored
         st.session_state["cover_letter"] = cover_letter
-        st.session_state["structured_resume"] = structured_resume
-        st.session_state["structured_job"] = structured_job
+        st.rerun()
 
 # ── Results tabs ─────────────────────────────────────────────────
-if "analysis" in st.session_state:
+if "tailored" in st.session_state:
     analysis = st.session_state["analysis"]
     tailored = st.session_state["tailored"]
     cover_letter = st.session_state["cover_letter"]

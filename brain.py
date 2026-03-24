@@ -490,25 +490,36 @@ class ResumeBrain:
         resume: ResumeSchema,
         analysis: AnalysisResult,
         job_description: JobDescriptionSchema,
+        confirmed_gap_keywords: Optional[List[str]] = None,
     ) -> TailoredResume:
         """
         Rewrites resume content to align with the job description using SWE best practices.
+        If confirmed_gap_keywords is provided, only those gaps are passed to the tailoring LLM.
         """
         print("\n" + "="*60)
         print("STARTING RESUME TAILORING")
         print("="*60)
 
+        # Filter gaps to only user-confirmed ones
+        if confirmed_gap_keywords is not None:
+            confirmed_set = set(confirmed_gap_keywords)
+            filtered_analysis = analysis.model_copy(
+                update={"gaps": [g for g in analysis.gaps if g.missing_keyword in confirmed_set]}
+            )
+        else:
+            filtered_analysis = analysis
+
         # --- Tailor experiences (filter irrelevant ones) ---
         tailored_work_history = []
         for experience in resume.work_history:
-            result = self._tailor_experience(experience, analysis, job_description)
+            result = self._tailor_experience(experience, filtered_analysis, job_description)
             if result is not None:
                 tailored_work_history.append(result)
 
         # Safety check: if ALL experiences were filtered, keep the 2 most recent
         if not tailored_work_history and resume.work_history:
             for experience in resume.work_history[:2]:
-                result = self._tailor_experience(experience, analysis, job_description, force_keep=True)
+                result = self._tailor_experience(experience, filtered_analysis, job_description, force_keep=True)
                 if result is not None:
                     tailored_work_history.append(result)
 
